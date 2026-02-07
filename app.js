@@ -653,6 +653,13 @@ async function renderSkillDetail(skillId) {
     html += `</div>`;
   }
 
+  // Delete skill
+  html += `
+    <div class="mt-24 text-center">
+      <button class="btn btn-danger btn-sm" data-action="deleteSkill" data-id="${skillId}">Delete this skill</button>
+    </div>
+  `;
+
   return html;
 }
 
@@ -814,6 +821,19 @@ async function handleAction(action, data, e) {
       const note = document.getElementById('skill-note').value.trim();
       await saveSkillCheckin(today, data.id, practiced, note);
       navigate('skills', 'detail', data.id);
+      break;
+    }
+
+    case 'deleteSkill': {
+      if (confirm('Delete this skill and all its check-in history?')) {
+        // Delete all check-ins for this skill
+        const checkins = await getSkillCheckinsBySkill(data.id);
+        for (const c of checkins) {
+          await dbDelete('skillCheckins', c.id);
+        }
+        await deleteSkill(data.id);
+        navigate('skills');
+      }
       break;
     }
 
