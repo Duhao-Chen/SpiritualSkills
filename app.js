@@ -868,9 +868,6 @@ async function init() {
     navigator.serviceWorker.register('./sw.js').catch(console.error);
   }
 
-  // Init default skills
-  await initDefaultSkills();
-
   // Render
   await render();
 }

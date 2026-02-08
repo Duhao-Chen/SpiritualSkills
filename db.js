@@ -142,21 +142,6 @@ async function getAllMeditations() {
 
 // ── Skills API ──
 
-const DEFAULT_SKILLS = [
-  { id: 'patience', name: 'Patience', description: 'Remaining calm and even-minded in all circumstances', color: '#C9A96E' },
-  { id: 'concentration', name: 'Concentration', description: 'One-pointed focus in meditation and daily tasks', color: '#7B9EA8' },
-  { id: 'devotion', name: 'Devotion', description: 'Deepening love for God and Guru', color: '#A67B9E' },
-  { id: 'evenmindedness', name: 'Even-mindedness', description: 'Equanimity through all dualities of life', color: '#8BA67B' },
-];
-
-async function initDefaultSkills() {
-  const existing = await dbGetAll(STORES.skills);
-  if (existing.length === 0) {
-    for (const skill of DEFAULT_SKILLS) {
-      await dbPut(STORES.skills, skill);
-    }
-  }
-}
 
 async function getAllSkills() {
   return dbGetAll(STORES.skills);
