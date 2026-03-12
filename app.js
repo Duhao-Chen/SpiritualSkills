@@ -29,37 +29,53 @@ const ICONS = {
   plus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>`,
   archive: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`,
   check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`,
+  settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`,
+  download: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
+  upload: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
 };
 
 // ══════════════════════════════════════════
 // Rendering Engine
 // ══════════════════════════════════════════
 
-const app = () => document.getElementById('app');
-const nav = () => document.getElementById('nav');
+let _appEl = null;
+let _navEl = null;
+const app = () => _appEl || (_appEl = document.getElementById('app'));
+const nav = () => _navEl || (_navEl = document.getElementById('nav'));
 
 async function render() {
-  // Render navigation
-  nav().innerHTML = renderNav();
+  try {
+    // Render navigation
+    nav().innerHTML = renderNav();
 
-  // Render current page
-  let html = '';
-  switch (currentPage) {
-    case 'home': html = await renderHome(); break;
-    case 'quotes': html = subPage === 'add' ? renderQuoteForm() :
-                          subPage === 'view' ? await renderQuoteView(subPageData) :
-                          await renderQuotes(); break;
-    case 'practice': html = subPage === 'meditation' ? await renderMeditationForm(subPageData) :
-                            subPage === 'affirmation-log' ? await renderAffirmationLogForm(subPageData) :
-                            subPage === 'add-affirmation' ? renderAffirmationForm() :
-                            await renderPractice(); break;
-    case 'skills': html = subPage === 'detail' ? await renderSkillDetail(subPageData) :
-                          subPage === 'add' ? renderSkillForm() :
-                          await renderSkills(); break;
-    default: html = await renderHome();
+    // Render current page
+    let html = '';
+    switch (currentPage) {
+      case 'home': html = await renderHome(); break;
+      case 'quotes': html = subPage === 'add' ? renderQuoteForm() :
+                            subPage === 'view' ? await renderQuoteView(subPageData) :
+                            await renderQuotes(); break;
+      case 'practice': html = subPage === 'meditation' ? await renderMeditationForm(subPageData) :
+                              subPage === 'affirmation-log' ? await renderAffirmationLogForm(subPageData) :
+                              subPage === 'add-affirmation' ? renderAffirmationForm() :
+                              await renderPractice(); break;
+      case 'skills': html = subPage === 'detail' ? await renderSkillDetail(subPageData) :
+                            subPage === 'add' ? renderSkillForm() :
+                            await renderSkills(); break;
+      case 'settings': html = await renderSettings(); break;
+      default: html = await renderHome();
+    }
+    app().innerHTML = html;
+    attachEventListeners();
+  } catch (err) {
+    console.error('Render error:', err);
+    app().innerHTML = `
+      <div class="empty-state">
+        <p style="color:var(--danger)">Something went wrong loading this page.</p>
+        <button class="btn btn-outline btn-sm" onclick="navigate('home')">Go Home</button>
+      </div>
+    `;
   }
-  app().innerHTML = html;
-  attachEventListeners();
 }
 
 function renderNav() {
@@ -68,6 +84,7 @@ function renderNav() {
     { id: 'quotes', icon: ICONS.quote, label: 'Quotes' },
     { id: 'practice', icon: ICONS.practice, label: 'Practice' },
     { id: 'skills', icon: ICONS.skills, label: 'Skills' },
+    { id: 'settings', icon: ICONS.settings, label: 'Settings' },
   ];
   return items.map(i => `
     <button class="nav-item ${currentPage === i.id ? 'active' : ''}" data-nav="${i.id}">
@@ -88,7 +105,7 @@ async function renderHome() {
   });
 
   // Load all data
-  const [morningMed, eveningMed, activeQuotes, skillsList, skillCheckins, activeAffs, affLogs] = await Promise.all([
+  const [morningMed, eveningMed, activeQuotes, skillsList, skillCheckins, activeAffs, affLogs, userName] = await Promise.all([
     getMeditation(today, 'morning'),
     getMeditation(today, 'evening'),
     getActiveQuotes(),
@@ -96,10 +113,13 @@ async function renderHome() {
     getSkillCheckinsByDate(today),
     getActiveAffirmations(),
     getAffirmationLogsByDate(today),
+    getSetting('userName', ''),
   ]);
 
+  const displayName = userName ? `, ${escHtml(userName)}` : '';
+
   let html = `
-    <div class="greeting">${getGreeting()}, David</div>
+    <div class="greeting">${getGreeting()}${displayName}</div>
     <div class="greeting-date">${todayFormatted}</div>
   `;
 
@@ -343,11 +363,11 @@ function renderQuoteForm() {
     <div style="padding:16px 0">
       <div class="form-group">
         <label class="form-label">Quote text</label>
-        <textarea class="form-textarea" id="quote-text" placeholder="Enter the quote..." style="min-height:120px"></textarea>
+        <textarea class="form-textarea" id="quote-text" placeholder="Enter the quote..." style="min-height:120px" maxlength="2000"></textarea>
       </div>
       <div class="form-group">
         <label class="form-label">Source (optional)</label>
-        <input type="text" class="form-input" id="quote-source" placeholder="e.g., Autobiography of a Yogi">
+        <input type="text" class="form-input" id="quote-source" placeholder="e.g., Autobiography of a Yogi" maxlength="200">
       </div>
       <button class="btn btn-primary" data-action="saveQuote">Add Contemplation</button>
     </div>
@@ -439,7 +459,7 @@ function renderAffirmationForm() {
     <div style="padding:16px 0">
       <div class="form-group">
         <label class="form-label">Affirmation text</label>
-        <textarea class="form-textarea" id="aff-text" placeholder="Enter your affirmation..."></textarea>
+        <textarea class="form-textarea" id="aff-text" placeholder="Enter your affirmation..." maxlength="500"></textarea>
       </div>
       <button class="btn btn-primary" data-action="saveAffirmation">Add Affirmation</button>
     </div>
@@ -673,16 +693,166 @@ function renderSkillForm() {
     <div style="padding:16px 0">
       <div class="form-group">
         <label class="form-label">Skill name</label>
-        <input type="text" class="form-input" id="skill-name" placeholder="e.g., Patience">
+        <input type="text" class="form-input" id="skill-name" placeholder="e.g., Patience" maxlength="50">
       </div>
       <div class="form-group">
         <label class="form-label">Description (optional)</label>
-        <input type="text" class="form-input" id="skill-desc" placeholder="What does this skill mean to you?">
+        <input type="text" class="form-input" id="skill-desc" placeholder="What does this skill mean to you?" maxlength="200">
       </div>
       <button class="btn btn-primary" data-action="saveSkill">Add Skill</button>
     </div>
   `;
 }
+
+// ══════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════
+
+async function renderSettings() {
+  const userName = await getSetting('userName', '');
+
+  return `
+    <div class="app-header">
+      <h1>Settings</h1>
+      <div style="width:48px"></div>
+    </div>
+    <div style="padding:16px 0">
+      <div class="section-label">Profile</div>
+      <div class="card">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Your name</label>
+          <input type="text" class="form-input" id="settings-name"
+            value="${escHtml(userName)}" placeholder="Enter your name"
+            maxlength="50">
+        </div>
+      </div>
+      <button class="btn btn-primary mt-16" data-action="saveSettings">Save Settings</button>
+
+      <div class="section-label mt-24">Data Management</div>
+      <div class="card">
+        <p class="text-sm" style="color:var(--text-secondary);margin-bottom:12px">
+          All your data is stored locally in this browser. Export a backup to keep it safe.
+        </p>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-outline btn-sm" data-action="exportData" style="flex:1">
+            ${ICONS.download} &nbsp;Export
+          </button>
+          <button class="btn btn-outline btn-sm" data-action="importData" style="flex:1">
+            ${ICONS.upload} &nbsp;Import
+          </button>
+        </div>
+        <input type="file" id="import-file" accept=".json" style="display:none">
+      </div>
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════
+// Data Export / Import
+// ══════════════════════════════════════════
+
+async function exportAllData() {
+  try {
+    const [meditations, skills, skillCheckins, quotes, affirmations, affirmationLogs, settings] = await Promise.all([
+      dbGetAll(STORES.meditations),
+      dbGetAll(STORES.skills),
+      dbGetAll(STORES.skillCheckins),
+      dbGetAll(STORES.quotes),
+      dbGetAll(STORES.affirmations),
+      dbGetAll(STORES.affirmationLogs),
+      dbGetAll(STORES.settings),
+    ]);
+
+    const data = {
+      exportDate: new Date().toISOString(),
+      version: 1,
+      meditations, skills, skillCheckins, quotes, affirmations, affirmationLogs, settings,
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `spiritual-skills-backup-${getToday()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Backup exported successfully');
+  } catch (err) {
+    showToast('Export failed: ' + err.message, true);
+  }
+}
+
+async function importData(file) {
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    if (!data.version || !data.exportDate) {
+      showToast('Invalid backup file', true);
+      return;
+    }
+
+    if (!confirm('This will replace all current data with the imported backup. Continue?')) return;
+
+    const storeNames = ['meditations', 'skills', 'skillCheckins', 'quotes', 'affirmations', 'affirmationLogs', 'settings'];
+    for (const name of storeNames) {
+      if (data[name] && Array.isArray(data[name])) {
+        for (const item of data[name]) {
+          await dbPut(STORES[name], item);
+        }
+      }
+    }
+
+    showToast('Data imported successfully');
+    render();
+  } catch (err) {
+    showToast('Import failed: ' + err.message, true);
+  }
+}
+
+// ══════════════════════════════════════════
+// Toast Notifications
+// ══════════════════════════════════════════
+
+function showToast(message, isError = false) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'toast' + (isError ? ' toast-error' : '');
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// ══════════════════════════════════════════
+// Input Validation
+// ══════════════════════════════════════════
+
+const MAX_LENGTHS = {
+  quote: 2000,
+  source: 200,
+  affirmation: 500,
+  skillName: 50,
+  skillDesc: 200,
+  journal: 5000,
+  note: 1000,
+};
+
+function validateLength(value, field) {
+  const max = MAX_LENGTHS[field];
+  if (max && value.length > max) {
+    showToast(`${field} must be under ${max} characters`, true);
+    return false;
+  }
+  return true;
+}
+
+// ══════════════════════════════════════════
+// Debounce Protection
+// ══════════════════════════════════════════
+
+let _actionInProgress = false;
 
 // ══════════════════════════════════════════
 // Event Handling
@@ -700,151 +870,194 @@ function attachEventListeners() {
   });
 }
 
-let _skillTodayState = null;
-
 async function handleAction(action, data, e) {
-  const today = getToday();
+  // Debounce: skip if a save/delete action is already in progress
+  const isMutating = action.startsWith('save') || action.startsWith('delete') || action === 'exportData' || action === 'importData' || action === 'quickCheckin';
+  if (isMutating) {
+    if (_actionInProgress) return;
+    _actionInProgress = true;
+  }
 
-  switch (action) {
-    // Navigation
-    case 'back':
-      if (subPage) navigate(currentPage);
-      else navigate('home');
-      break;
-    case 'navQuotes': navigate('quotes'); break;
-    case 'navPractice': navigate('practice'); break;
-    case 'navSkills': navigate('skills'); break;
+  try {
+    const today = getToday();
 
-    // Meditation
-    case 'editMeditation':
-      navigate('practice', 'meditation', data.session);
-      break;
+    switch (action) {
+      // Navigation
+      case 'back':
+        if (subPage) navigate(currentPage);
+        else navigate('home');
+        break;
+      case 'navQuotes': navigate('quotes'); break;
+      case 'navPractice': navigate('practice'); break;
+      case 'navSkills': navigate('skills'); break;
 
-    case 'toggleTech': {
-      const box = document.getElementById(`tech-${data.key}`);
-      box.classList.toggle('checked');
-      break;
-    }
+      // Meditation
+      case 'editMeditation':
+        navigate('practice', 'meditation', data.session);
+        break;
 
-    case 'saveMeditation': {
-      const techniques = {};
-      ['energization', 'hongSau', 'aum'].forEach(k => {
-        techniques[k] = document.getElementById(`tech-${k}`).classList.contains('checked');
-      });
-      const duration = parseInt(document.getElementById('med-duration').value) || null;
-      const journal = document.getElementById('med-journal').value.trim();
-      await saveMeditation(today, data.session, techniques, duration, journal);
-      navigate('practice');
-      break;
-    }
+      case 'toggleTech': {
+        const box = document.getElementById(`tech-${data.key}`);
+        box.classList.toggle('checked');
+        break;
+      }
 
-    // Quotes
-    case 'addQuote': navigate('quotes', 'add'); break;
+      case 'saveMeditation': {
+        const techniques = {};
+        ['energization', 'hongSau', 'aum'].forEach(k => {
+          techniques[k] = document.getElementById(`tech-${k}`).classList.contains('checked');
+        });
+        const duration = parseInt(document.getElementById('med-duration').value) || null;
+        const journal = document.getElementById('med-journal').value.trim();
+        if (journal && !validateLength(journal, 'journal')) break;
+        await saveMeditation(today, data.session, techniques, duration, journal);
+        navigate('practice');
+        break;
+      }
 
-    case 'viewQuote':
-      navigate('quotes', 'view', data.id);
-      break;
+      // Quotes
+      case 'addQuote': navigate('quotes', 'add'); break;
 
-    case 'saveQuote': {
-      const text = document.getElementById('quote-text').value.trim();
-      const source = document.getElementById('quote-source').value.trim();
-      if (!text) return;
-      await saveQuote({ text, source: source || null });
-      navigate('quotes');
-      break;
-    }
+      case 'viewQuote':
+        navigate('quotes', 'view', data.id);
+        break;
 
-    case 'archiveQuote':
-      await archiveQuote(data.id);
-      navigate('quotes');
-      break;
-
-    case 'restoreQuote':
-      await restoreQuote(data.id);
-      navigate('quotes');
-      break;
-
-    case 'deleteQuote':
-      if (confirm('Delete this quote permanently?')) {
-        await deleteQuote(data.id);
+      case 'saveQuote': {
+        const text = document.getElementById('quote-text').value.trim();
+        const source = document.getElementById('quote-source').value.trim();
+        if (!text) { showToast('Quote text is required', true); break; }
+        if (!validateLength(text, 'quote')) break;
+        if (source && !validateLength(source, 'source')) break;
+        await saveQuote({ text, source: source || null });
         navigate('quotes');
+        break;
       }
-      break;
 
-    // Affirmations
-    case 'addAffirmation': navigate('practice', 'add-affirmation'); break;
+      case 'archiveQuote':
+        await archiveQuote(data.id);
+        navigate('quotes');
+        break;
 
-    case 'saveAffirmation': {
-      const text = document.getElementById('aff-text').value.trim();
-      if (!text) return;
-      await saveAffirmation({ text });
-      navigate('practice');
-      break;
-    }
+      case 'restoreQuote':
+        await restoreQuote(data.id);
+        navigate('quotes');
+        break;
 
-    case 'logAffirmation':
-      navigate('practice', 'affirmation-log', data.id);
-      break;
-
-    case 'saveAffirmationLog': {
-      const duration = parseInt(document.getElementById('aff-duration').value) || null;
-      await saveAffirmationLog(today, data.id, duration);
-      navigate('practice');
-      break;
-    }
-
-    // Skills
-    case 'addSkill': navigate('skills', 'add'); break;
-
-    case 'viewSkill':
-      navigate('skills', 'detail', data.id);
-      break;
-
-    case 'quickCheckin': {
-      const existing = await getSkillCheckin(today, data.id);
-      const nowPracticed = !(existing && existing.practiced);
-      await saveSkillCheckin(today, data.id, nowPracticed, existing ? existing.note : '');
-      render();
-      break;
-    }
-
-    case 'toggleSkillToday': {
-      const toggle = document.getElementById('skill-today-toggle');
-      toggle.classList.toggle('checked');
-      _skillTodayState = toggle.classList.contains('checked');
-      break;
-    }
-
-    case 'saveSkillCheckin': {
-      const toggle = document.getElementById('skill-today-toggle');
-      const practiced = toggle.classList.contains('checked');
-      const note = document.getElementById('skill-note').value.trim();
-      await saveSkillCheckin(today, data.id, practiced, note);
-      navigate('skills', 'detail', data.id);
-      break;
-    }
-
-    case 'deleteSkill': {
-      if (confirm('Delete this skill and all its check-in history?')) {
-        // Delete all check-ins for this skill
-        const checkins = await getSkillCheckinsBySkill(data.id);
-        for (const c of checkins) {
-          await dbDelete('skillCheckins', c.id);
+      case 'deleteQuote':
+        if (confirm('Delete this quote permanently?')) {
+          await deleteQuote(data.id);
+          navigate('quotes');
         }
-        await deleteSkill(data.id);
-        navigate('skills');
-      }
-      break;
-    }
+        break;
 
-    case 'saveSkill': {
-      const name = document.getElementById('skill-name').value.trim();
-      const desc = document.getElementById('skill-desc').value.trim();
-      if (!name) return;
-      const id = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-      await saveSkill({ id, name, description: desc || null, color: '#C9A96E' });
-      navigate('skills');
-      break;
+      // Affirmations
+      case 'addAffirmation': navigate('practice', 'add-affirmation'); break;
+
+      case 'saveAffirmation': {
+        const text = document.getElementById('aff-text').value.trim();
+        if (!text) { showToast('Affirmation text is required', true); break; }
+        if (!validateLength(text, 'affirmation')) break;
+        await saveAffirmation({ text });
+        navigate('practice');
+        break;
+      }
+
+      case 'logAffirmation':
+        navigate('practice', 'affirmation-log', data.id);
+        break;
+
+      case 'saveAffirmationLog': {
+        const duration = parseInt(document.getElementById('aff-duration').value) || null;
+        await saveAffirmationLog(today, data.id, duration);
+        navigate('practice');
+        break;
+      }
+
+      // Skills
+      case 'addSkill': navigate('skills', 'add'); break;
+
+      case 'viewSkill':
+        navigate('skills', 'detail', data.id);
+        break;
+
+      case 'quickCheckin': {
+        const existing = await getSkillCheckin(today, data.id);
+        const nowPracticed = !(existing && existing.practiced);
+        await saveSkillCheckin(today, data.id, nowPracticed, existing ? existing.note : '');
+        render();
+        break;
+      }
+
+      case 'toggleSkillToday': {
+        const toggle = document.getElementById('skill-today-toggle');
+        toggle.classList.toggle('checked');
+        break;
+      }
+
+      case 'saveSkillCheckin': {
+        const toggle = document.getElementById('skill-today-toggle');
+        const practiced = toggle.classList.contains('checked');
+        const note = document.getElementById('skill-note').value.trim();
+        if (note && !validateLength(note, 'note')) break;
+        await saveSkillCheckin(today, data.id, practiced, note);
+        navigate('skills', 'detail', data.id);
+        break;
+      }
+
+      case 'deleteSkill': {
+        if (confirm('Delete this skill and all its check-in history?')) {
+          const checkins = await getSkillCheckinsBySkill(data.id);
+          for (const c of checkins) {
+            await dbDelete('skillCheckins', c.id);
+          }
+          await deleteSkill(data.id);
+          navigate('skills');
+        }
+        break;
+      }
+
+      case 'saveSkill': {
+        const name = document.getElementById('skill-name').value.trim();
+        const desc = document.getElementById('skill-desc').value.trim();
+        if (!name) { showToast('Skill name is required', true); break; }
+        if (!validateLength(name, 'skillName')) break;
+        if (desc && !validateLength(desc, 'skillDesc')) break;
+        const id = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        await saveSkill({ id, name, description: desc || null, color: '#C9A96E' });
+        navigate('skills');
+        break;
+      }
+
+      // Settings
+      case 'saveSettings': {
+        const name = document.getElementById('settings-name').value.trim();
+        if (name && !validateLength(name, 'skillName')) break;
+        await setSetting('userName', name);
+        showToast('Settings saved');
+        break;
+      }
+
+      case 'exportData':
+        await exportAllData();
+        break;
+
+      case 'importData': {
+        const fileInput = document.getElementById('import-file');
+        fileInput.click();
+        fileInput.onchange = async () => {
+          if (fileInput.files.length > 0) {
+            await importData(fileInput.files[0]);
+          }
+        };
+        break;
+      }
+    }
+  } catch (err) {
+    showToast('Something went wrong: ' + err.message, true);
+    console.error('Action error:', action, err);
+  } finally {
+    if (isMutating) {
+      _actionInProgress = false;
     }
   }
 }

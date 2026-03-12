@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spiritual-skills-v1';
+const CACHE_NAME = 'spiritual-skills-v2';
 const ASSETS = [
   './',
   './index.html',

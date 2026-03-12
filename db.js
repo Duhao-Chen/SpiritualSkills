@@ -1,7 +1,7 @@
 // db.js — IndexedDB storage layer for Spiritual Skills
 
 const DB_NAME = 'SpiritualSkillsDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const STORES = {
   meditations: 'meditations',
@@ -20,47 +20,34 @@ function openDB() {
     req.onsuccess = () => resolve(req.result);
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
+      const oldVersion = e.oldVersion;
 
-      // Meditation logs: keyed by "date-session" e.g. "2026-02-06-morning"
-      if (!db.objectStoreNames.contains(STORES.meditations)) {
-        const store = db.createObjectStore(STORES.meditations, { keyPath: 'id' });
-        store.createIndex('date', 'date', { unique: false });
-      }
+      // ── Version 1: Initial schema ──
+      if (oldVersion < 1) {
+        const medStore = db.createObjectStore(STORES.meditations, { keyPath: 'id' });
+        medStore.createIndex('date', 'date', { unique: false });
 
-      // Skill definitions
-      if (!db.objectStoreNames.contains(STORES.skills)) {
         db.createObjectStore(STORES.skills, { keyPath: 'id' });
-      }
 
-      // Daily skill check-ins: keyed by "date-skillId"
-      if (!db.objectStoreNames.contains(STORES.skillCheckins)) {
-        const store = db.createObjectStore(STORES.skillCheckins, { keyPath: 'id' });
-        store.createIndex('date', 'date', { unique: false });
-        store.createIndex('skillId', 'skillId', { unique: false });
-      }
+        const checkinStore = db.createObjectStore(STORES.skillCheckins, { keyPath: 'id' });
+        checkinStore.createIndex('date', 'date', { unique: false });
+        checkinStore.createIndex('skillId', 'skillId', { unique: false });
 
-      // Quotes
-      if (!db.objectStoreNames.contains(STORES.quotes)) {
-        const store = db.createObjectStore(STORES.quotes, { keyPath: 'id' });
-        store.createIndex('status', 'status', { unique: false });
-      }
+        const quoteStore = db.createObjectStore(STORES.quotes, { keyPath: 'id' });
+        quoteStore.createIndex('status', 'status', { unique: false });
 
-      // Affirmation definitions
-      if (!db.objectStoreNames.contains(STORES.affirmations)) {
         db.createObjectStore(STORES.affirmations, { keyPath: 'id' });
-      }
 
-      // Affirmation daily logs
-      if (!db.objectStoreNames.contains(STORES.affirmationLogs)) {
-        const store = db.createObjectStore(STORES.affirmationLogs, { keyPath: 'id' });
-        store.createIndex('date', 'date', { unique: false });
-        store.createIndex('affirmationId', 'affirmationId', { unique: false });
-      }
+        const affLogStore = db.createObjectStore(STORES.affirmationLogs, { keyPath: 'id' });
+        affLogStore.createIndex('date', 'date', { unique: false });
+        affLogStore.createIndex('affirmationId', 'affirmationId', { unique: false });
 
-      // App settings
-      if (!db.objectStoreNames.contains(STORES.settings)) {
         db.createObjectStore(STORES.settings, { keyPath: 'key' });
       }
+
+      // ── Version 2: Migration support marker ──
+      // Future migrations go here:
+      // if (oldVersion < 3) { ... }
     };
   });
 }
@@ -337,20 +324,34 @@ function getToday() {
   return new Date().toISOString().split('T')[0];
 }
 
-function offsetDate(dateStr, days) {
+function isValidDateStr(dateStr) {
+  if (typeof dateStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
   const d = new Date(dateStr + 'T12:00:00');
+  return !isNaN(d.getTime());
+}
+
+function parseDate(dateStr) {
+  if (!isValidDateStr(dateStr)) {
+    console.warn('Invalid date string:', dateStr);
+    return new Date(); // fallback to now
+  }
+  return new Date(dateStr + 'T12:00:00');
+}
+
+function offsetDate(dateStr, days) {
+  const d = parseDate(dateStr);
   d.setDate(d.getDate() + days);
   return d.toISOString().split('T')[0];
 }
 
 function daysBetween(date1, date2) {
-  const d1 = new Date(date1 + 'T12:00:00');
-  const d2 = new Date(date2 + 'T12:00:00');
+  const d1 = parseDate(date1);
+  const d2 = parseDate(date2);
   return Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
 }
 
 function formatDate(dateStr) {
-  const d = new Date(dateStr + 'T12:00:00');
+  const d = parseDate(dateStr);
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
